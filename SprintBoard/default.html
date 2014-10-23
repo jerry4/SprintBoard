@@ -1,0 +1,856 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <title>Sprint Board</title>
+</head>
+<body>
+    <script src="//code.jquery.com/jquery-2.0.3.js"></script>
+    <script src="d3.min.js"></script>
+    <style>
+        html { height: 100%; }
+
+        body {
+            font-size: 1em;
+            font-family: arial;
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            position: relative;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+        ul, li { list-style: none; }
+
+        ul { padding: 0; }
+
+        ul li {
+            overflow: hidden;
+            border-top: 1px solid #9dc2ba;
+            padding-bottom: 1em;
+        }
+
+        strong { font-size: x-large; }
+
+        body.lock-header { overflow: hidden; }
+
+        body.lock-header #boardHeader {
+            position: absolute;
+            top: 0;
+            height: 216px;
+            left: 0;
+            width: 100%;
+        }
+
+        body.lock-header #boardData {
+            position: absolute;
+            top: 216px;
+            bottom: 0;
+            left: 0;
+            overflow-x: hidden;
+            overflow-y: auto;
+        }
+
+        .header {
+            background-color: #2f3439;
+            color: white;
+            padding: .5em;
+            padding-left: 20px;
+            height: 40px;
+        }
+
+        .subHeader {
+            background-color: #2f3439;
+            padding: .5em;
+            height: 9em;
+            color: white;
+        }
+
+        .button {
+            padding: 10px;
+            font-size: 12px;
+            height: 40px;
+            color: #2f3439;
+            text-align: center;
+            background: #f1c40f;
+            border: 0;
+            cursor: pointer;
+        }
+
+        .field {
+            height: 30px;
+            border: 0;
+            font-size: 16px;
+            padding: 5px;
+        }
+
+        .dropdown {
+            height: 40px;
+            border: 0;
+            font-size: 16px;
+            padding: 5px;
+        }
+
+        .statsHeading {
+            position: absolute;
+            width: 100px;
+            top: -20px;
+            font-size: .6em;
+            text-align: center;
+        }
+
+        .statsFooter {
+            position: absolute;
+            width: 100px;
+            bottom: -20px;
+            font-size: .6em;
+            text-align: center;
+        }
+
+        .summary {
+            -ms-text-overflow: ellipsis;
+            -o-text-overflow: ellipsis;
+            text-overflow: ellipsis;
+            font-size: .9em;
+        }
+
+        span.issue {
+            overflow: hidden;
+            text-decoration: none;
+            color: #000;
+            background-color: #f6ecb7;
+            display: block;
+            height: 4.5em;
+            width: 14em;
+            padding: .5em;
+            margin: .5em;
+            float: left;
+        }
+
+        .issue.selected { outline: 3px solid blue; }
+
+        @-webkit-keyframes updating-outline-animation {
+            0% { outline-color: green; }
+
+            50% { outline-color: yellow; }
+
+            100% { outline-color: green; }
+        }
+
+        .issue.updating {
+            outline: 3px solid green;
+            -webkit-animation: updating-outline-animation 1.2s linear infinite;
+        }
+
+        span.story {
+            width: 100%;
+            height: 25px;
+            background-color: #f6ecb7;
+            border-bottom: 2px solid rgba(0, 0, 0, .7);
+            padding: .3em;
+            margin: 0px;
+            font-size: 20px;
+            font-weight: bolder;
+        }
+
+        span.story .assignee { padding-right: 20px; }
+
+        span.story span.summary { padding-left: 20px; }
+
+        li { border: 1px solid black; }
+
+        span.testing { background-color: #c8d4a4; }
+
+        span.development { background-color: #9DC2ED; }
+
+        span.done {
+            background-color: #efefee;
+            color: rgba(0, 0, 0, 0.50);
+            box-shadow: none;
+        }
+
+        a { color: #000000; }
+
+        span.done a:link { color: rgba(0, 0, 0, 0.50); }
+
+        span.done a:visited { color: rgba(0, 0, 0, 0.50); }
+
+        span.edited { border-left: 5px solid #f39998 !important; }
+
+        #stats span { margin-right: 1em; }
+
+        .editedIn24Hours {
+            position: relative;
+            top: -.5em;
+            right: -.5em;
+            float: right;
+        }
+
+        .isInDevelopment {
+            position: relative;
+            top: -.5em;
+            right: -.5em;
+            float: right;
+        }
+
+        .assignee {
+            position: relative;
+            float: right;
+        }
+
+        #stories { margin-top: -15px; }
+
+        .progress-radial {
+            float: left;
+            margin-right: 30px;
+            margin-top: 15px;
+            position: relative;
+        }
+
+        .progress-radial .overlay {
+            position: absolute;
+            width: 56px;
+            height: 56px;
+            top: 22px;
+            background-color: #2f3439;
+            border-radius: 50%;
+            margin-left: 22px;
+            text-align: center;
+            line-height: 56px;
+            font-size: 16px;
+            color: #ffffff;
+        }
+        #addTasksBox {
+            display: none;
+            background-color: gray;
+            position: fixed;
+            top: 0;
+            right: 0;
+            z-index: 1;
+            padding: 5px;
+        }
+    </style>
+    <section id="boardHeader">
+        <div id="addTasksBox">
+            <div>Enter tasks here 1 line => 1 task <button style="float:right">Add Tasks</button></div>
+            <textarea cols="60" rows="15"></textarea>
+        </div>
+        <div class="header">
+            <strong>Current Sprint Story Board</strong> (<a style="color:#8484cf;" href="https://redbook.atlassian.net/secure/RapidBoard.jspa?rapidView=4&useStoredSettings=true">Jira Board</a>)
+            <div style="float: right;">
+                <span>
+                    Auto-login
+                    <input type="checkbox" id="autoLogin" />
+                </span>
+                <span>
+                    <input id="username" type="text" placeholder="username" class="field" />
+                    <input id="pwd" type="password" placeholder="password" autofocus class="field" />
+                    <input id="goGetData" type="submit" value="Login" class="button" />
+                </span>
+            </div>
+        </div>
+
+        <div class="subHeader">
+            <strong id="stats"></strong>
+
+            <div style="float: right; margin-top: 6em;">
+                <button id="hideComplete" type="button" onclick=" $('.done:not(.story)').toggle(); " class="button">Toggle Completed Tasks</button>
+                Team: <select id="teamSelect" onchange=" teamChange(this) " class="dropdown">
+                          <option value="All">All</option>
+                          <option value="Team1">Team 1</option>
+                          <option value="Team2">Team 2</option>
+                      </select>
+            </div>
+        </div>
+    </section>
+    <section id="boardData">
+        <div id='stories'></div>
+        <div style="padding: 20px;">
+            <span class='done'> Dim: Done</span><br/>
+            <span class='testing'> Green: Testing</span><br/>
+            <span class='development'> Blue: In Development</span><br/>
+            <span class='edited'> Edited in last 24 hours</span><br/>
+        </div>
+    </section>
+    <script>
+        var startAjax;
+        var issues = [];
+        var issuesRetrieved = 0;
+        var totalIssuesInJira = 0;
+        var userDisplayName = "";
+
+        $(function() {
+            // load user name from the last request
+            if (localStorage && localStorage['username']) {
+                $('#username').val(localStorage['username']);
+                if (localStorage['pwd']) {
+                    $('#pwd').val(localStorage['pwd']);
+                    if (localStorage['auto']) {
+                        $('#autoLogin').attr('checked', 'checked');
+                    }
+                }
+                if (localStorage['teamSelect']) {
+                    $('#teamSelect').val(localStorage['teamSelect']);
+                }
+            }
+
+            $(function() {
+                if (localStorage['auto']) {
+                    $('#goGetData').trigger('click');
+                }
+            });
+
+            $('#pwd').on('keypress', function(e) {
+                if (e.keyCode === 13) //enter key
+                    $('#goGetData').click();
+
+                e.stopPropagation();
+            });
+
+            $(window).on('click', function(event) {
+                $('.selected').removeClass('selected');
+            });
+
+            $('#stories').on('click', '.issue', function(event) {
+                var clickedOnTheJiraLink = event.target.nodeName.toLowerCase() == 'a';
+                if (!clickedOnTheJiraLink) {
+                    $('.selected').removeClass('selected');
+
+                    $(this).addClass('selected');
+                }
+
+                event.stopPropagation();
+            });
+
+            function ajaxPut(data, uri) {
+                return $.ajax({
+                    settings: {
+                        headers: {
+                            Accepts: 'application/json'
+                        },
+                    },
+                    type: 'PUT',
+                    url: uri,
+                    data: data,
+                    beforeSend: function(xhr) {
+                        xhr.setRequestHeader('Authorization', getBasicAuth());
+                    }
+                });
+            }
+
+            function assignIssueToMe($issue) {
+                var issueId = $issue.data("issueData").key;
+                $issue.addClass('updating');
+                ajaxPut({
+                        issueId: issueId,
+                        userName: $('#username').val()
+                    },'api/sprint/Assign')
+                    .done(function() {
+                        $issue.removeClass('updating');
+                        $issue.find('.assignee').text(userDisplayName);
+                    })
+                    .fail(function() {
+                        $issue.removeClass('updating');
+                        console.log('fail');
+                    });
+            }
+
+            function setInProgress($issue) {
+                updateState($issue, 51, $('#username').val(), function() {
+                    $issue.find('.assignee').text(userDisplayName);
+                    $issue.removeClass('done');
+                    $issue.removeClass('testing');
+                    $issue.addClass('development');
+                });
+            }
+
+            function setToTesting($issue) {
+                updateState($issue, 41, null, function() {
+                    var issueData = $issue.data("issueData");
+
+                    $issue.removeClass('done');
+                    $issue.removeClass('development');
+                    if (issueData.isStory || issueData.isBug || issueData.isSprintDefect) {
+                        $issue.addClass('testing');
+                    }
+                });
+            }
+
+            function setToDone($issue) {
+                updateState($issue, 31, null, function() {
+                    $issue.addClass('done');
+                    $issue.removeClass('development');
+                    $issue.removeClass('testing');
+                });
+            }
+
+            function setToToDo($issue) {
+                updateState($issue, 11, "", function() {
+                    $issue.find('.assignee').text("");
+                    $issue.removeClass('done');
+                    $issue.removeClass('development');
+                    $issue.removeClass('testing');
+                });
+            }
+
+            function updateState($issue, state, username, onSuccess) {
+                var issueData = $issue.data("issueData");
+                var issueId = issueData.key;
+
+                $issue.addClass('updating');
+                ajaxPut({
+                        issueId: issueId,
+                        userName: username,
+                        updateAssignment: username != null,
+                        state: state
+                    }, 'api/sprint/UpdateState')
+                    .done(function() {
+                        $issue.removeClass('updating');
+                        onSuccess();
+                    })
+                    .fail(function() {
+                        $issue.removeClass('updating');
+                        console.log('fail');
+                    });
+            }
+
+            $(window).on('keypress', function(event) {
+                var selectedIssue = $('.issue.selected').first();
+                var taskBoxOpen = $('#addTasksBox:visible').length > 0;
+
+                if (selectedIssue.length > 0 && !taskBoxOpen) {
+                    if (event.keyCode === 97) {
+                        assignIssueToMe(selectedIssue);
+                    } else if (event.keyCode === 115) {
+                        setInProgress(selectedIssue);
+                    } else if (event.keyCode === 100) {
+                        setToDone(selectedIssue);
+                    } else if (event.keyCode === 116) {
+                        setToTesting(selectedIssue);
+                    } else if (event.keyCode === 114) {
+                        setToToDo(selectedIssue);
+                    } else if (event.keyCode === 120) {
+                        this.rotate(selectedIssue);
+                    } else if (event.keyCode === 99) { // c - create
+                        popupTextAreaForSubTaskAdd();
+                    }
+                }
+
+                console.log(event.keyCode);
+            });
+
+            function popupTextAreaForSubTaskAdd() {
+                var story = $('.story.selected');
+                if (story.length === 0) {
+                    $('#addTasksBox').hide();
+                    return;
+                }
+
+                window._lastSelectedStory = story.find('a').text();
+
+                var box = $('#addTasksBox');
+                var ta = box.find('textarea');
+                ta.val("UnitTests\nVerify AC\nQA: Test cases & peer review\nQA: Test Execution");
+                box.show();
+            }
+
+            // esc hide box
+            $('#addTasksBox').on('keyup', function(e) {
+                if (e.keyCode === 27) {
+                    $('#addTasksBox').hide();
+                }
+                return true;
+            });
+
+            // add tasks
+            $('#addTasksBox button').on('click', function (e) {
+
+                var ta = $('#addTasksBox textarea');
+                $('#addTasksBox button').hide();
+                var tasks = ta.val().split('\n');
+                ajaxPut({
+                    Parent: "MRB-" + window._lastSelectedStory,
+                    Tasks: tasks
+                }, 'api/sprint/PutSubTasks')
+                .done(function() {
+                    $('#addTasksBox button').show();
+                    $('#addTasksBox').hide();
+                })
+                .fail(function () {
+                    $('#addTasksBox button').show();
+                    alert('Add sub tasks failed. Check console.');
+                    console.log(tasks);
+                });
+            });
+            
+            window.teamChange = function(el) {
+                var sel = $(el).val();
+                filterToTeam(sel);
+            };
+
+            $('#goGetData').on('click', function() {
+                $('#goGetData').hide();
+                if (localStorage) {
+                    localStorage['username'] = $('#username').val();
+                    if ($('#autoLogin').is(':checked')) {
+                        localStorage['pwd'] = $('#pwd').val();
+                        localStorage['auto'] = 1;
+                    } else {
+                        localStorage.removeItem('pwd');
+                        localStorage.removeItem('auto');
+                    }
+                }
+                startAjax = new Date();
+                $.ajax({
+                        settings: {
+                            headers: {
+                                Accepts: 'application/json'
+                            },
+                        },
+                        url: 'api/sprint/getuserdata?username=' + $('#username').val(),
+                        beforeSend: function(xhr) {
+                            xhr.setRequestHeader('Authorization', getBasicAuth());
+                        }
+                    }).done(function(data) {
+                        data = JSON.parse(data);
+                        userDisplayName = data.displayName;
+
+                        $.ajax({
+                                settings: {
+                                    headers: {
+                                        Accepts: 'application/json'
+                                    }
+                                },
+                                url: 'api/sprint',
+                                data: {
+                                    project: getProjectQueryString(),
+                                    sprint: getSprintQueryString()
+                                },
+                                beforeSend: function(xhr) {
+                                    xhr.setRequestHeader('Authorization', getBasicAuth());
+                                },
+                            }).done(onSuccess)
+                            .fail(onFail);
+                    })
+                    .fail(onFail);
+            });
+        });
+
+        function filterToTeam(teamVal) {
+            if (localStorage) {
+                localStorage['teamSelect'] = teamVal;
+            }
+
+            switch (teamVal) {
+            case 'All':
+                $('.Team1').show();
+                $('.Team2').show();
+                break;
+            case 'Team1':
+                $('.Team1').show();
+                $('.Team2').hide();
+                break;
+            case 'Team2':
+                $('.Team1').hide();
+                $('.Team2').show();
+                break;
+            };
+
+            reportStats();
+        }
+
+        function getBasicAuth() {
+            var tok = $('#username').val() + ':' + $('#pwd').val();
+            var hash = btoa(tok);
+            return 'Basic ' + hash;
+        }
+
+        function loadBoard() {
+            var ul = $('<ul/>');
+            var bugLi = $('<li/>');
+            ul.append(bugLi);
+
+            var curLi;
+            for (var i = 0; i < issues.length; i++) {
+                var issue = issues[i];
+
+                if (issue.isStory) {
+                    curLi = $('<li class="' + issue.labels.join(' ') + '"/>');
+                    if (issue.labels.length === 0 || (issue.labels.indexOf('Team1') === -1 && issue.labels.indexOf('Team2') === -1)) {
+                        curLi.css("border-left", "5px solid #f1c40f");
+                    }
+
+                    ul.append(curLi);
+                }
+
+                var span = $('<span class="issue"/>');
+                span.data("issueData", issue);
+
+                if (issue.isBug && !issue.isSprintDefect) {
+                    bugLi.append(span);
+                    span.addClass(issue.labels.join(' '));
+                } else {
+                    curLi.append(span);
+                }
+
+                if (issue.isStory) {
+                    span.addClass('story');
+                } else if (issue.isBug) {
+                    span.addClass('bug');
+                } else if (issue.isTechTask) {
+                    span.addClass('techTask');
+                } else if (issue.isSprintDefect) {
+                    span.addClass('sprintDefect');
+                }
+
+                if (issue.isDone) {
+                    span.addClass('done');
+                } else if (issue.isTesting && (issue.isStory || issue.isBug || issue.isSprintDefect)) {
+                    span.addClass('testing');
+                } else if (issue.isDevelopment) {
+                    span.addClass('development');
+                }
+
+                span.html($('<img/>').attr('src', issue.fields.issuetype.iconUrl));
+
+                if (((new Date()).getTime() - Date.parse(issue.fields.updated)) < 24 * 60 * 60 * 1000) {
+                    span.addClass('edited');
+                }
+                if (issue.isStory) {
+                    span.append(' <a href="https://redbook.atlassian.net/browse/' + issue.key + '" target="_blank">' + issue.key.slice(4) + '</a>' +
+                        getStoryPointString(issue.isStory, issue.isBug, issue.fields.storyPoints) +
+                        '<span class="assignee">' + (!!issue.fields.assignee ? issue.fields.assignee.displayName.replace(' [Administrator]', '') : '') +
+                        '</span>' +
+                        '<span class="summary">' + issue.fields.summary + '</span>'
+                    );
+
+                } else {
+                    span.append(' <a href="https://redbook.atlassian.net/browse/' + issue.key + '" target="_blank">' + issue.key.slice(4) + '</a>' +
+                        getStoryPointString(issue.isStory, issue.isBug, issue.fields.storyPoints) +
+                        '<span class="assignee">' + (!!issue.fields.assignee ? issue.fields.assignee.displayName.replace(' [Administrator]', '') : '') +
+                        '</span><br/>' +
+                        '<span class="summary">' + issue.fields.summary + '</span>'
+                        //' [' + (issue.fields.parent ? issue.fields.parent.key : '') + ']' +
+                    );
+                }
+            }
+
+            $('#stories').html(ul);
+        }
+
+        function enhanceIssue(issue, parentIssueMap) {
+            issue.isStory = issue.fields.issuetype.iconUrl.indexOf('story') > 0;
+            issue.isBug = issue.fields.issuetype.iconUrl.indexOf('bug') > 0;
+            issue.isSprintDefect = issue.fields.issuetype.name === 'Sprint Defect';
+            if (issue.isSprintDefect) {
+                issue.isBug = false;
+            } // sprint defect is not a bug
+            issue.isTechTask = issue.fields.issuetype.name === 'Technical Task';
+
+            issue.isDevelopment = issue.fields.status.name === 'In Process';
+            issue.isDone = issue.fields.status.name === 'Done';
+            issue.isTesting = issue.fields.status.name === 'Testing';
+            
+            if (!issue.fields.parent) {
+                parentIssueMap[issue.id] = issue;
+            }
+
+            if (issue.fields.parent && parentIssueMap[issue.fields.parent.id]) {
+                issue.labels = parentIssueMap[issue.fields.parent.id].fields.labels;
+            } else {
+                issue.labels = issue.fields.labels;
+            }
+
+            return issue;
+        }
+
+        function onSuccess(ret, textStatus, jqXHR) {
+            $('#goGetData').show();
+            var ajaxRequestDuration = (new Date()).getTime() - startAjax.getTime();
+            var data = JSON.parse(ret);
+
+            issues = [];
+            issuesRetrieved = data.maxResults;
+            totalIssuesInJira = data.total;
+            var sourceIssues = data.issues;
+
+            var parentIssueMap = {};
+
+            for (var i = 0; i < sourceIssues.length; i++) {
+                var issue = sourceIssues[i];
+
+                if (issue.fields.parent != undefined) {
+                    continue;
+                }
+                issues.push(enhanceIssue(issue, parentIssueMap));
+
+                var subtasks = issue.fields.subtasks || [];
+                subtasks.sort(function(a, b) {
+                    var aNum = parseFloat(a.fields.summary);
+                    var bNum = parseFloat(b.fields.summary);
+                    aNum = isNaN(aNum) ? (-1000000 + parseInt(a.id)) : aNum;
+                    bNum = isNaN(bNum) ? (-1000000 + parseInt(b.id)) : bNum;
+
+                    return aNum < bNum ? -1 : aNum > bNum ? 1 : 0;
+                });
+                for (var j = 0; j < subtasks.length; j++) {
+                    var subtask = subtasks[j];
+                    issue = null;
+                    for (var k = 0; k < sourceIssues.length; k++) {
+                        if (sourceIssues[k].id == subtask.id) {
+                            issue = sourceIssues[k];
+                            break;
+                        }
+                    }
+                    if (issue != null) {
+                        issues.push(enhanceIssue(issue, parentIssueMap));
+                    }
+                }
+            }
+
+            loadBoard();
+            filterToTeam($('#teamSelect').val());
+        }
+
+        function onFail(data, textStatus, errorThrown) {
+            $('#goGetData').show();
+            alert('fail ' + textStatus + ' ' + errorThrown);
+        }
+
+        function reportStats() {
+            var statsDiv = $('#stats');
+            statsDiv.empty();
+//            if (stats.totalIssuesInJira > stats.issuesRetrieved) {
+//                statsDiv.append($('<span style="color:red;"/>').text('Viewing ' + stats.issuesRetrieved + ' of ' + stats.totalIssuesInJira + ' cards. Some issues are missing.'));
+//            }
+            drawProgressDial(statsDiv, 'story', 'Stories');
+            drawProgressDial(statsDiv, 'bug', 'Bugs');
+            drawProgressDial(statsDiv, 'techTask', 'Tech Tasks');
+            drawProgressDial(statsDiv, 'sprintDefect', 'Sprint Defects');
+            drawProgressDial(statsDiv, '', 'Points');
+            rotateDials();
+        }
+
+        function totalPoints(allText) {
+            var regex = /\(([0-9,.]*)\)/g;
+            var arr;
+            var results = [];
+
+            while ((arr = regex.exec(allText)) !== null) {
+                results.push(arr[1]);
+            }
+            var total = 0;
+            for (var i = 0; i < results.length; i++) {
+                console.log(results[i]);
+                total += parseFloat(results[i]);
+            }
+            return total;
+        }
+
+        function drawProgressDial(statsDiv, cls, title) {
+            var total, done, test, dev, toDo;
+            if (cls !== '') {
+                total = $("span:visible." + cls).length;
+                done = $("span:visible.done." + cls).length;
+                test = $("span:visible.testing." + cls).length;
+                dev = $("span:visible.development." + cls).length;
+                toDo = total - done - test - dev;
+            }
+            else { // ugly hack for story points, but...
+                total = totalPoints($("span:visible.story").text());
+                done = totalPoints($("span:visible.done.story").text());
+                test = totalPoints($("span:visible.testing.story").text());
+                dev = totalPoints($("span:visible.development.story").text());
+                toDo = total - done - test - dev;
+            }
+            statsDiv.append('<div class="progress-radial">' +
+                '<div class="statsHeading">' + title + '</div>' +
+                '<div id="' + cls + 'Dial"/><div class="overlay">' + Math.ceil(done / total * 100) + '%</div>' +
+                '<div class="statsFooter">' + Math.round(done) + ' / ' + Math.round(total) + '</div></div>');
+
+            var dataset = {
+                progress: [done, test, dev, toDo],
+            };
+            var color = function(i) {
+                return [
+                    "#EFEFEE", "#C8D4A4", "#9DC2ED", "#F6ECB7"
+                ][i];
+            };
+            var width = 100,
+                height = 100,
+                radius = Math.min(width, height) / 2;
+
+            var pie = d3.layout.pie()
+                .sort(null);
+
+            var arc = d3.svg.arc()
+                .innerRadius(radius - 26)
+                .outerRadius(radius - 0);
+
+            var svg = d3.select("#" + cls + "Dial").append("svg")
+                .attr("width", width)
+                .attr("height", height)
+                .append("g")
+                .attr("transform", "translate(" + width / 2 + "," + height / 2 + ")");
+
+            svg.append("title")
+                .text(function (d, i) { return 'Done: ' + done + ' Test: ' + test + ' Dev: ' + dev + ' ToDo: ' + toDo + ' Total: ' + total; });
+
+            var path = svg.selectAll("path")
+                .data(pie(dataset.progress))
+                .enter().append("path")
+                .attr("fill", function(d, i) { return color(i); })
+                .attr("d", arc);
+        }
+
+        function rotateDials() {
+            $('.progress-radial').each(function(i, dial) {
+                setTimeout(rotate($(dial)), 100);
+            });
+        }
+
+        function rotate(elem) {
+            elem.stop().animate(
+                { rotation: 360 },
+                {
+                    duration: 1500,
+                    step: function(now, fx) {
+                        $(this).css({ "transform": "rotate(" + fx.pos * 360 + "deg)" });
+                    }
+                }
+            );
+        }
+
+        function getStoryPointString(isStory, isBug, storyPoints) {
+            if (isStory) {
+                return ' (' + (storyPoints ? storyPoints : '?') + ')';
+            }
+            if (isBug && storyPoints) {
+                return ' (' + storyPoints + ')';
+            }
+            return '';
+        }
+
+        var regex = /[?&]([^=&]*)(?:=([^&]*))?/g;
+
+        function getProjectQueryString() {
+            return getQueryVariable("Project");
+        }
+
+        function getSprintQueryString() {
+            return getQueryVariable("Sprint");
+        }
+
+        function getQueryVariable(variable) {
+            var query = window.location.search.substring(1);
+            var vars = query.split('&');
+            for (var i = 0; i < vars.length; i++) {
+                var pair = vars[i].split('=');
+                if (decodeURIComponent(pair[0]).toLowerCase() == variable.toLowerCase()) {
+                    return decodeURIComponent(pair[1]);
+                }
+            }
+        }
+    </script>
+</body>
+</html>
