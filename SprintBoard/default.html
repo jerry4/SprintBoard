@@ -236,7 +236,7 @@
             <textarea cols="60" rows="15"></textarea>
         </div>
         <div class="header">
-            <strong>Current Sprint Story Board</strong> (<a style="color:#8484cf;" href="https://redbook.atlassian.net/secure/RapidBoard.jspa?rapidView=4&useStoredSettings=true">Jira Board</a>)
+            <strong>Sprint Board</strong>
             <div style="float: right;">
                 <span>
                     Auto-login
@@ -255,11 +255,6 @@
 
             <div style="float: right; margin-top: 6em;">
                 <button id="hideComplete" type="button" onclick=" $('.done:not(.story)').toggle(); " class="button">Toggle Completed Tasks</button>
-                Team: <select id="teamSelect" onchange=" teamChange(this) " class="dropdown">
-                          <option value="All">All</option>
-                          <option value="Team1">Team 1</option>
-                          <option value="Team2">Team 2</option>
-                      </select>
             </div>
         </div>
     </section>
@@ -288,9 +283,6 @@
                     if (localStorage['auto']) {
                         $('#autoLogin').attr('checked', 'checked');
                     }
-                }
-                if (localStorage['teamSelect']) {
-                    $('#teamSelect').val(localStorage['teamSelect']);
                 }
             }
 
@@ -483,11 +475,6 @@
                 });
             });
             
-            window.teamChange = function(el) {
-                var sel = $(el).val();
-                filterToTeam(sel);
-            };
-
             $('#goGetData').on('click', function() {
                 $('#goGetData').hide();
                 if (localStorage) {
@@ -536,29 +523,6 @@
             });
         });
 
-        function filterToTeam(teamVal) {
-            if (localStorage) {
-                localStorage['teamSelect'] = teamVal;
-            }
-
-            switch (teamVal) {
-            case 'All':
-                $('.Team1').show();
-                $('.Team2').show();
-                break;
-            case 'Team1':
-                $('.Team1').show();
-                $('.Team2').hide();
-                break;
-            case 'Team2':
-                $('.Team1').hide();
-                $('.Team2').show();
-                break;
-            };
-
-            reportStats();
-        }
-
         function getBasicAuth() {
             var tok = $('#username').val() + ':' + $('#pwd').val();
             var hash = btoa(tok);
@@ -576,10 +540,6 @@
 
                 if (issue.isStory) {
                     curLi = $('<li class="' + issue.labels.join(' ') + '"/>');
-                    if (issue.labels.length === 0 || (issue.labels.indexOf('Team1') === -1 && issue.labels.indexOf('Team2') === -1)) {
-                        curLi.css("border-left", "5px solid #f1c40f");
-                    }
-
                     ul.append(curLi);
                 }
 
@@ -709,7 +669,6 @@
             }
 
             loadBoard();
-            filterToTeam($('#teamSelect').val());
         }
 
         function onFail(data, textStatus, errorThrown) {
