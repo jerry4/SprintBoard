@@ -14,6 +14,9 @@ namespace SprintBoard.Controllers
 {
     public class SprintController : ApiController
     {
+        private readonly string _baseUrl = "https://siftit.atlassian.net/rest/api/2/";
+        private readonly string _jiraProject = "Ordering";
+
         public string GetUserData(String username)
         {
             var client = new HttpClient();
@@ -21,7 +24,7 @@ namespace SprintBoard.Controllers
             client.DefaultRequestHeaders.Authorization =
                 new AuthenticationHeaderValue("Basic", Request.Headers.Authorization.Parameter);
 
-            var userUri = "https://redbook.atlassian.net/rest/api/2/user?username=" + username;
+            var userUri = _baseUrl + "user?username=" + username;
             var userResponse = client.GetAsync(userUri).Result;
             
             string userData = string.Empty;
@@ -38,9 +41,9 @@ namespace SprintBoard.Controllers
             return userData;
         }
 
-        public string Get(string project = "DigitalRedBook", string sprint = null)
+        public string Get(string project = "", string sprint = null)
         {
-            if (string.IsNullOrEmpty(project)) { project = "DigitalRedBook"; }
+            if (string.IsNullOrEmpty(project)) { project = _jiraProject; }
 
             var client = new HttpClient();
             client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
@@ -51,10 +54,13 @@ namespace SprintBoard.Controllers
                 project,
                 sprint == null ? "in openSprints()" : String.Format("=\"Sprint {0}\"", sprint));
 
-            var uri = String.Format("https://redbook.atlassian.net/rest/api/2/search?maxResults={0}&jql={1}&fields={2}",
+            var uri = String.Format(_baseUrl + "search?maxResults={0}&jql={1}",
                 2000,
-                HttpContext.Current.Server.UrlEncode(jql),
-                "summary,issuetype,created,updated,priority,description,status,parent,assignee,customfield_10004,labels,subtasks");
+                HttpContext.Current.Server.UrlEncode(jql));
+            //var uri = String.Format(_baseUrl + "search?maxResults={0}&jql={1}&fields={2}",
+            //    2000,
+            //    HttpContext.Current.Server.UrlEncode(jql),
+            //    "summary,issuetype,created,updated,priority,description,status,parent,assignee,customfield_10004,labels,subtasks");
             
             HttpResponseMessage response = client.GetAsync(uri).Result;
             string issues = string.Empty;
@@ -81,7 +87,7 @@ namespace SprintBoard.Controllers
         [HttpPut]
         public HttpResponseMessage Assign([FromBody]AssignToMeParams assignParams)
         {
-            var uri = "https://redbook.atlassian.net/rest/api/2/issue/" + assignParams.issueId;
+            var uri = _baseUrl + "issue/" + assignParams.issueId;
 
             var client = new HttpClient();
 
@@ -125,7 +131,7 @@ namespace SprintBoard.Controllers
 
             if (assignResponse == null || assignResponse.StatusCode == HttpStatusCode.NoContent)
             {
-                var uri = "https://redbook.atlassian.net/rest/api/2/issue/" + updateParams.issueId + "/transitions";
+                var uri = _baseUrl + "issue/" + updateParams.issueId + "/transitions";
 
                 var client = new HttpClient();
 
@@ -160,7 +166,7 @@ namespace SprintBoard.Controllers
                 return new HttpResponseMessage(HttpStatusCode.BadRequest);
             }
 
-            var uri = "https://redbook.atlassian.net/rest/api/2/issue/";
+            var uri = _baseUrl + "issue/";
 
             var client = new HttpClient();
 

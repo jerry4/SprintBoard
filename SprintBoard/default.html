@@ -268,6 +268,7 @@
         </div>
     </section>
     <script>
+        var projectKey = "ORDER";
         var startAjax;
         var issues = [];
         var issuesRetrieved = 0;
@@ -461,7 +462,7 @@
                 $('#addTasksBox button').hide();
                 var tasks = ta.val().split('\n');
                 ajaxPut({
-                    Parent: "MRB-" + window._lastSelectedStory,
+                    Parent: projectKey + "-" + window._lastSelectedStory,
                     Tasks: tasks
                 }, 'api/sprint/PutSubTasks')
                 .done(function() {
@@ -577,7 +578,7 @@
                     span.addClass('edited');
                 }
                 if (issue.isStory) {
-                    span.append(' <a href="https://redbook.atlassian.net/browse/' + issue.key + '" target="_blank">' + issue.key.slice(4) + '</a>' +
+                    span.append(' <a href="https://siftit.atlassian.net/browse/' + issue.key + '" target="_blank">' + issue.key.slice(projectKey.length + 1) + '</a>' +
                         getStoryPointString(issue.isStory, issue.isBug, issue.fields.storyPoints) +
                         '<span class="assignee">' + (!!issue.fields.assignee ? issue.fields.assignee.displayName.replace(' [Administrator]', '') : '') +
                         '</span>' +
@@ -585,7 +586,7 @@
                     );
 
                 } else {
-                    span.append(' <a href="https://redbook.atlassian.net/browse/' + issue.key + '" target="_blank">' + issue.key.slice(4) + '</a>' +
+                    span.append(' <a href="https://siftit.atlassian.net/browse/' + issue.key + '" target="_blank">' + issue.key.slice(projectKey.length + 1) + '</a>' +
                         getStoryPointString(issue.isStory, issue.isBug, issue.fields.storyPoints) +
                         '<span class="assignee">' + (!!issue.fields.assignee ? issue.fields.assignee.displayName.replace(' [Administrator]', '') : '') +
                         '</span><br/>' +
