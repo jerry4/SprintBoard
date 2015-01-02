@@ -4,7 +4,7 @@
     <title>Sprint Board</title>
 </head>
 <body>
-    <script src="//code.jquery.com/jquery-2.0.3.js"></script>
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/2.0.3/jquery.min.js"></script>
     <script src="d3.min.js"></script>
     <style>
         html { height: 100%; }
@@ -32,56 +32,64 @@
 
         strong { font-size: x-large; }
 
-        body.lock-header { overflow: hidden; }
-
-        body.lock-header #boardHeader {
-            position: absolute;
-            top: 0;
-            height: 216px;
-            left: 0;
-            width: 100%;
-        }
-
-        body.lock-header #boardData {
-            position: absolute;
-            top: 216px;
-            bottom: 0;
-            left: 0;
-            overflow-x: hidden;
-            overflow-y: auto;
-        }
-
         .header {
             background-color: #2f3439;
             color: white;
             padding: .5em;
             padding-left: 20px;
-            height: 40px;
+            height: 17px;
+        }
+
+        #buttonBar {
+            position: absolute;
+            top: 0;
+            right:0;
+            width: 500px;
+        }
+
+        #loginContainer
+        {
+            position: absolute;
+            top:33px;
+            right:0;
+        }
+
+        #loginForm
+        {
+            display:none;
+            border: 1px solid #f1c40f;
+            background-color: #2f3439;
+            padding: 5px;
+        }
+        #goGetData {
+            color: white;
+            cursor: pointer;
         }
 
         .subHeader {
             background-color: #2f3439;
-            padding: .5em;
+            padding: 20px 8px 8px 8px ;
             height: 9em;
             color: white;
         }
 
+        .field {
+            border: 0;
+            font-size: 16px;
+            padding: 5px;
+        }
         .button {
             padding: 10px;
             font-size: 12px;
-            height: 40px;
+            height: 13px;
             color: #2f3439;
             text-align: center;
             background: #f1c40f;
             border: 0;
             cursor: pointer;
-        }
 
-        .field {
-            height: 30px;
-            border: 0;
-            font-size: 16px;
-            padding: 5px;
+            margin-left: 5px;
+            float: right;
         }
 
         .dropdown {
@@ -112,6 +120,9 @@
             -o-text-overflow: ellipsis;
             text-overflow: ellipsis;
             font-size: .9em;
+        }
+        .summary span {
+            font-style: italic;
         }
 
         span.issue {
@@ -229,6 +240,10 @@
             z-index: 1;
             padding: 5px;
         }
+        #activeSprints {
+            padding-left : 100px;
+            font-style: italic;
+        }
     </style>
     <section id="boardHeader">
         <div id="addTasksBox">
@@ -236,26 +251,22 @@
             <textarea cols="60" rows="15"></textarea>
         </div>
         <div class="header">
-            <strong>Sprint Board</strong>
-            <div style="float: right;">
-                <span>
-                    Auto-login
-                    <input type="checkbox" id="autoLogin" />
-                </span>
-                <span>
-                    <input id="username" type="text" placeholder="username" class="field" />
-                    <input id="pwd" type="password" placeholder="password" autofocus class="field" />
-                    <input id="goGetData" type="submit" value="Login" class="button" />
-                </span>
+            <strong>Sprint Board</strong> <span id="activeSprints"></span> (<a style="color:#8484cf;" href="https://siftit.atlassian.net/secure/RapidBoard.jspa?rapidView=4&useStoredSettings=true">Jira Board</a>)
+            <div id="buttonBar">
+                <div id="LoginFormHandle" class="button">Login</div>
+                <div id="hideComplete" class="button" onclick=" $('.done:not(.story)').toggle(); ">Toggle Comleted Tasks</div>
+            </div>
+            <div id="loginContainer">
+                <div id="loginForm">
+                    <input id="username" type="text" placeholder="Username" class="field" /><br />
+                    <input id="pwd" type="password" placeholder="Password" class="field" /><br />
+                    <input type="checkbox" id="autoLogin" /><a id="goGetData" style="float:right;">Login</a><br />
+                </div>
             </div>
         </div>
 
         <div class="subHeader">
             <strong id="stats"></strong>
-
-            <div style="float: right; margin-top: 6em;">
-                <button id="hideComplete" type="button" onclick=" $('.done:not(.story)').toggle(); " class="button">Toggle Completed Tasks</button>
-            </div>
         </div>
     </section>
     <section id="boardData">
@@ -265,10 +276,19 @@
             <span class='testing'> Green: Testing</span><br/>
             <span class='development'> Blue: In Development</span><br/>
             <span class='edited'> Edited in last 24 hours</span><br/>
+            <b>Shortcuts:</b><br />
+            <span> a: assign don't change state</span><br />
+            <span> s: start task and assign</span><br />
+            <span> t: move to testing</span><br />
+            <span> d: move to done</span><br />
+            <span> r: reset (put in todo and clear user)</span><br />
+            <span> x: you figure it out</span><br />
+            <span> c: When a story is selected this will bring up a dialog to add tasks.</span><br />
         </div>
     </section>
     <script>
         var projectKey = "ORDER";
+        var baseJiraUrl = ""; // todo fill this in
         var startAjax;
         var issues = [];
         var issuesRetrieved = 0;
@@ -276,6 +296,18 @@
         var userDisplayName = "";
 
         $(function() {
+            function getBasicAuth() {
+                var tok = $('#username').val() + ':' + $('#pwd').val();
+                var hash = btoa(tok);
+                return 'Basic ' + hash;
+            }
+
+            $.ajaxSetup({
+                headers: { 'Accepts': 'application/json' },
+                beforeSend: function (xhr) {
+                    xhr.setRequestHeader('Authorization', getBasicAuth());
+                }
+            });
             // load user name from the last request
             if (localStorage && localStorage['username']) {
                 $('#username').val(localStorage['username']);
@@ -290,6 +322,17 @@
             $(function() {
                 if (localStorage['auto']) {
                     $('#goGetData').trigger('click');
+                }
+            });
+            $('#goGetData').on('click', function () {
+                $("#loginForm").slideUp("slow");
+            });
+            $('#LoginFormHandle').on('click', function () {
+                if ($("#loginForm").is(":hidden")) {
+                    $("#loginForm").slideDown("slow");
+                }
+                else {
+                    $("#loginForm").slideUp("slow");
                 }
             });
 
@@ -317,17 +360,9 @@
 
             function ajaxPut(data, uri) {
                 return $.ajax({
-                    settings: {
-                        headers: {
-                            Accepts: 'application/json'
-                        },
-                    },
                     type: 'PUT',
                     url: uri,
-                    data: data,
-                    beforeSend: function(xhr) {
-                        xhr.setRequestHeader('Authorization', getBasicAuth());
-                    }
+                    data: data
                 });
             }
 
@@ -429,7 +464,7 @@
                     }
                 }
 
-                console.log(event.keyCode);
+                //console.log(event.keyCode);
             });
 
             function popupTextAreaForSubTaskAdd() {
@@ -490,32 +525,16 @@
                 }
                 startAjax = new Date();
                 $.ajax({
-                        settings: {
-                            headers: {
-                                Accepts: 'application/json'
-                            },
-                        },
-                        url: 'api/sprint/getuserdata?username=' + $('#username').val(),
-                        beforeSend: function(xhr) {
-                            xhr.setRequestHeader('Authorization', getBasicAuth());
-                        }
+                    url: 'api/sprint/getuserdata?username=' + $('#username').val()
                     }).done(function(data) {
                         data = JSON.parse(data);
                         userDisplayName = data.displayName;
 
                         $.ajax({
-                                settings: {
-                                    headers: {
-                                        Accepts: 'application/json'
-                                    }
-                                },
                                 url: 'api/sprint',
                                 data: {
                                     project: getProjectQueryString(),
                                     sprint: getSprintQueryString()
-                                },
-                                beforeSend: function(xhr) {
-                                    xhr.setRequestHeader('Authorization', getBasicAuth());
                                 },
                             }).done(onSuccess)
                             .fail(onFail);
@@ -524,17 +543,12 @@
             });
         });
 
-        function getBasicAuth() {
-            var tok = $('#username').val() + ':' + $('#pwd').val();
-            var hash = btoa(tok);
-            return 'Basic ' + hash;
-        }
-
         function loadBoard() {
             var ul = $('<ul/>');
             var bugLi = $('<li/>');
             ul.append(bugLi);
 
+            var epics = [];
             var curLi;
             for (var i = 0; i < issues.length; i++) {
                 var issue = issues[i];
@@ -582,9 +596,11 @@
                         getStoryPointString(issue.isStory, issue.isBug, issue.fields.storyPoints) +
                         '<span class="assignee">' + (!!issue.fields.assignee ? issue.fields.assignee.displayName.replace(' [Administrator]', '') : '') +
                         '</span>' +
-                        '<span class="summary">' + issue.fields.summary + '</span>'
+                        '<span class="summary">' + issue.fields.summary + " <span data-epic='" + issue.fields.epicLink + "'> " + '</span></span>'
                     );
 
+                    epics.push(issue.fields.epicLink);
+                    $(span).attr('title', issue.fields.description);
                 } else {
                     span.append(' <a href="https://siftit.atlassian.net/browse/' + issue.key + '" target="_blank">' + issue.key.slice(projectKey.length + 1) + '</a>' +
                         getStoryPointString(issue.isStory, issue.isBug, issue.fields.storyPoints) +
@@ -597,6 +613,20 @@
             }
 
             $('#stories').html(ul);
+            loadEpics(epics);
+        }
+        function loadEpics(epics) {
+            $.ajax({
+                url: 'api/sprint/getEpics',
+                data: { epics: epics },
+                dataType: 'json'
+            })
+            .done(function (data) {
+                for (var d in data) {
+                    $("span[data-epic='" + d + "']").text(" (" + data[d] + ") ");
+                }
+            })
+            .fail(function () {alert("failed to load epics!!!")});
         }
 
         function enhanceIssue(issue, parentIssueMap) {
@@ -608,9 +638,15 @@
             } // sprint defect is not a bug
             issue.isTechTask = issue.fields.issuetype.name === 'Technical Task';
 
-            issue.isDevelopment = issue.fields.status.name === 'In Process';
-            issue.isDone = issue.fields.status.name === 'Done';
-            issue.isTesting = issue.fields.status.name === 'Testing';
+            //drb Open? In Process Done Testing
+            //siftit Open In Progress Resolved Closed
+            var statusName = issue.fields.status.name;
+            issue.isDevelopment = statusName === 'In Process' ||
+                                  statusName === 'In Progress';
+            issue.isDone = statusName === 'Done' ||
+                           statusName === 'Closed';
+            issue.isTesting = statusName === 'Testing' ||
+                              statusName === 'Resolved';
             
             if (!issue.fields.parent) {
                 parentIssueMap[issue.id] = issue;
@@ -628,7 +664,7 @@
         function onSuccess(ret, textStatus, jqXHR) {
             $('#goGetData').show();
             var ajaxRequestDuration = (new Date()).getTime() - startAjax.getTime();
-            var data = JSON.parse(ret);
+            var data = ret;//JSON.parse(ret);
 
             issues = [];
             issuesRetrieved = data.maxResults;
@@ -671,11 +707,27 @@
 
             loadBoard();
             reportStats();
+            getSprintData();
         }
 
         function onFail(data, textStatus, errorThrown) {
             $('#goGetData').show();
             alert('fail ' + textStatus + ' ' + errorThrown);
+        }
+        function getSprintData() {
+            $.ajax({ url: 'api/sprint/getsprints' })
+                .done(function (data) {
+                    data = JSON.parse(data);
+                    var activeSprints = [];
+                    $.each(data.sprints, function (idx, d) {
+                        if (d.state === 'ACTIVE') {
+                            activeSprints.push(d.name);
+                        }
+                    });
+                    var lbl = 'Active Sprint' + (activeSprints.length > 1 ? 's: ' : ': ');
+                    $('#activeSprints').text(lbl + activeSprints.join(','));
+                }
+            );
         }
 
         function reportStats() {
@@ -687,7 +739,7 @@
             drawProgressDial(statsDiv, 'story', 'Stories');
             drawProgressDial(statsDiv, 'bug', 'Bugs');
             drawProgressDial(statsDiv, 'techTask', 'Tech Tasks');
-            drawProgressDial(statsDiv, 'sprintDefect', 'Sprint Defects');
+            drawProgressDial(statsDiv, 'sprintDefect', 'Defects');
             drawProgressDial(statsDiv, '', 'Points');
             rotateDials();
         }
@@ -702,7 +754,7 @@
             }
             var total = 0;
             for (var i = 0; i < results.length; i++) {
-                console.log(results[i]);
+                //console.log(results[i]);
                 total += parseFloat(results[i]);
             }
             return total;
