@@ -35,7 +35,7 @@ namespace SprintBoard.Controllers
     }
 
     // yeah I don't get this. There are multiple names depending on what you are doing...
-    private readonly string _projectname = "Ordering";
+    private readonly string _projectname = "Evolution";
     private readonly string _jiraProjectName = "Iterations";
 
     public string GetUserData(String username)
@@ -64,7 +64,7 @@ namespace SprintBoard.Controllers
       return userData;
     }
 
-    public HttpResponseMessage Get(string project = "Ordering", string sprint = null)
+    public HttpResponseMessage Get(string project = "Evolution", string sprint = null)
     {
       if (string.IsNullOrEmpty(project)) { project = _projectname; }
 
